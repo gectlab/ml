@@ -1,33 +1,53 @@
-from sklearn.datasets import load_digits
+import pandas as pd
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler
-from sklearn.naive_bayes import GaussianNB
-from sklearn.metrics import accuracy_score
+from sklearn.naive_bayes import BernoulliNB, MultinomialNB
 
-data = load_digits()
-X, y = data.data, data.target
+# Load data
+data = pd.read_csv("naive.csv")
+X_raw = data["Message"]
+Y = data["Class"]
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
+# Split dataset
+X_train_raw, X_test_raw, Y_train, Y_test = train_test_split(
+    X_raw, Y, test_size=0.2, random_state=42
 )
 
-# Preprocessing: handle missing values
-imputer = SimpleImputer(strategy="mean")
-X_train = imputer.fit_transform(X_train)
-X_test = imputer.transform(X_test)
+# 1. Multinomial Naive Bayes
+# Extract word counts
+count_vec = CountVectorizer()
+Xm_train = count_vec.fit_transform(X_train_raw)
+Xm_test = count_vec.transform(X_test_raw)
 
-# Scaling
-scaler = StandardScaler()
-X_train = scaler.fit_transform(X_train)
-X_test = scaler.transform(X_test)
+# Train & Predict
+mnb = MultinomialNB()
+mnb.fit(Xm_train, Y_train)
+Y_pred_multi = mnb.predict(Xm_test)
 
-# Model
-model = GaussianNB()
-model.fit(X_train, y_train)
+print("Multinomial Predictions:")
+print("Actual:   ", Y_test.values)
+print("Predicted:", Y_pred_multi)
+print(
+    classification_report(Y_test, Y_pred_multi, pos_label="Spam", zero_division=0)
+)
 
-# Prediction
-y_pred = model.predict(X_test)
+# 2. Bernoulli Naive Bayes
+# Extract binary presence indicators
+bern_vec = CountVectorizer(binary=True)
+Xb_train = bern_vec.fit_transform(X_train_raw)
+Xb_test = bern_vec.transform(X_test_raw)
 
-# Evaluation
-print("Accuracy:", accuracy_score(y_test, y_pred))
+# Train & Predict
+bnb = BernoulliNB()
+bnb.fit(Xb_train, Y_train)
+Y_pred_bernoulli = bnb.predict(Xb_test)
+
+print("\nBernoulli Predictions:")
+print("Actual:   ", Y_test.values)
+print("Predicted:", Y_pred_bernoulli)
+print(
+    classification_report(
+        Y_test, Y_pred_bernoulli, pos_label="Spam", zero_division=0
+    )
+)
